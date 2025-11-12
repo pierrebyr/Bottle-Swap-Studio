@@ -1,0 +1,5 @@
+{
+  "name": "Bottle Swap Studio",
+  "description": "Upload a packshot of a spirit bottle and a reference scene. The app will use Gemini to seamlessly replace the bottle in the scene.",
+  "requestFramePermissions": []
+}
