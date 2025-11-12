@@ -447,9 +447,9 @@ const App: React.FC = () => {
             <main className="container mx-auto p-4 md:p-8">
                 <div className="max-w-md mx-auto mb-8">
                      <div className="relative flex p-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg">
-                        <button onClick={() => handleModeChange('simple')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900 dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'simple'}>Simple Generation</button>
-                        <button onClick={() => handleModeChange('complex')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900 dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'complex'}>Complex Generation</button>
                         <div className="absolute top-1 bottom-1 bg-white dark:bg-zinc-200 rounded-md transition-all duration-300 ease-in-out shadow-sm" style={{ width: 'calc(50% - 4px)', left: generationMode === 'simple' ? '4px' : 'calc(50% + 0px)' }}></div>
+                        <button onClick={() => handleModeChange('simple')} className={`relative z-10 w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'simple'}>Simple Generation</button>
+                        <button onClick={() => handleModeChange('complex')} className={`relative z-10 w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'complex'}>Complex Generation</button>
                     </div>
                 </div>
 
