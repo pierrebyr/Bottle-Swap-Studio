@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ImageUploader } from './components/ImageUploader';
 import { Spinner } from './components/Spinner';
+import { ToastContainer } from './components/Toast';
+import { ImageModal } from './components/ImageModal';
+import { useToast } from './hooks/useToast';
 import { generateImage, generateBottleAngles } from './services/geminiService';
 import type { UploadedImage } from './types';
 
@@ -11,8 +14,12 @@ const DownloadIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" className="
 
 type GenerationMode = 'simple' | 'complex';
 type ComplexPhase = 'angles' | 'scene';
+type ProgressStatus = 'idle' | 'generating' | 'processing';
 
 const App: React.FC = () => {
+    // Toast notifications
+    const { toasts, dismissToast, showSuccess, showError, showInfo } = useToast();
+
     // Shared State
     const [spiritImage, setSpiritImage] = useState<UploadedImage | null>(null);
     const [prompt, setPrompt] = useState<string>('');
@@ -21,7 +28,7 @@ const App: React.FC = () => {
     // Mode State
     const [generationMode, setGenerationMode] = useState<GenerationMode>('simple');
     const [complexPhase, setComplexPhase] = useState<ComplexPhase>('angles');
-    
+
     // Simple Mode State
     const [sceneImage, setSceneImage] = useState<UploadedImage | null>(null);
     const [styleImages, setStyleImages] = useState<UploadedImage[]>([]);
@@ -35,15 +42,40 @@ const App: React.FC = () => {
     const [generatedImages, setGeneratedImages] = useState<string[] | null>(null);
     const [isGeneratingScene, setIsGeneratingScene] = useState<boolean>(false);
 
+    // Progress tracking
+    const [progressStatus, setProgressStatus] = useState<ProgressStatus>('idle');
+    const [progressMessage, setProgressMessage] = useState<string>('');
+
+    // Image modal
+    const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
+
+    // AbortController for cancellation
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+
+    const handleCancelGeneration = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+            setIsGeneratingAngles(false);
+            setIsGeneratingScene(false);
+            setProgressStatus('idle');
+            setProgressMessage('');
+            showInfo('Generation cancelled');
+        }
+    };
 
     const handleGenerateAngles = async () => {
         if (!spiritImage) {
-            setError('Please upload a packshot first.');
+            showError('Please upload a packshot first.');
             return;
         }
         setIsGeneratingAngles(true);
         setError(null);
         setGeneratedAngles([]);
+        setProgressStatus('generating');
+        setProgressMessage('Generating 4 different bottle angles...');
+        abortControllerRef.current = new AbortController();
 
         try {
             const resultBase64Array = await generateBottleAngles(spiritImage);
@@ -51,10 +83,18 @@ const App: React.FC = () => {
             const anglesWithMime: UploadedImage[] = resultBase64Array.map(base64 => ({ base64, mimeType: 'image/png' }));
             setGeneratedAngles(anglesWithMime);
             setComplexPhase('scene');
+            showSuccess('Bottle angles generated successfully!');
+            setProgressStatus('idle');
+            setProgressMessage('');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+            setError(errorMessage);
+            showError(errorMessage);
+            setProgressStatus('idle');
+            setProgressMessage('');
         } finally {
             setIsGeneratingAngles(false);
+            abortControllerRef.current = null;
         }
     };
 
@@ -63,21 +103,32 @@ const App: React.FC = () => {
         const referenceData = isStyleReferenceOnly ? styleImages : (sceneImage ? [sceneImage] : []);
 
         if (objectImages.some(img => !img) || referenceData.length === 0) {
-            setError('Please ensure all required images are uploaded.');
+            showError('Please ensure all required images are uploaded.');
             return;
         }
 
         setIsGeneratingScene(true);
         setError(null);
         setGeneratedImages(null);
+        setProgressStatus('generating');
+        setProgressMessage('Analyzing scene and generating 4 variations...');
+        abortControllerRef.current = new AbortController();
 
         try {
             const resultBase64Array = await generateImage(referenceData, objectImages, prompt, isStyleReferenceOnly);
             setGeneratedImages(resultBase64Array);
+            showSuccess(`Successfully generated ${resultBase64Array.length} images!`);
+            setProgressStatus('idle');
+            setProgressMessage('');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+            const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+            setError(errorMessage);
+            showError(errorMessage);
+            setProgressStatus('idle');
+            setProgressMessage('');
         } finally {
             setIsGeneratingScene(false);
+            abortControllerRef.current = null;
         }
     };
 
@@ -97,6 +148,33 @@ const App: React.FC = () => {
         setPrompt('');
         setGeneratedImages(null);
         setError(null);
+    };
+
+    const handleDownloadAll = () => {
+        if (!generatedImages || generatedImages.length === 0) return;
+
+        generatedImages.forEach((imageBase64, index) => {
+            const link = document.createElement('a');
+            link.href = `data:image/png;base64,${imageBase64}`;
+            link.download = `bottle-swap-${index + 1}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        showSuccess(`Downloaded ${generatedImages.length} images!`);
+    };
+
+    const handleModeChange = (mode: GenerationMode) => {
+        if (generationMode !== mode) {
+            // Reset state when changing modes
+            setGeneratedAngles([]);
+            setGeneratedImages(null);
+            setError(null);
+            setComplexPhase('angles');
+            setGenerationMode(mode);
+            showInfo(`Switched to ${mode} mode`);
+        }
     };
 
     // --- RENDER FUNCTIONS ---
@@ -170,7 +248,35 @@ const App: React.FC = () => {
                 </div>
                 <div>
                     <h2 className="text-xl font-semibold text-zinc-200 border-b border-zinc-800 pb-4 mb-4 pt-8">4. Optional: Add Details</h2>
-                    <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g., 'Make the lighting warmer...'" className="w-full h-32 p-3 bg-zinc-900 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-zinc-600 focus:border-zinc-600 transition-colors" />
+                    <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="e.g., 'Make the lighting warmer...'"
+                        className="w-full h-32 p-3 bg-zinc-900 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-zinc-600 focus:border-zinc-600 transition-colors"
+                        aria-label="Additional prompt details"
+                    />
+                    <div className="mt-3">
+                        <p className="text-xs text-zinc-500 mb-2">Quick suggestions:</p>
+                        <div className="flex flex-wrap gap-2">
+                            {[
+                                'Warmer lighting',
+                                'Cooler tones',
+                                'More dramatic shadows',
+                                'Softer background',
+                                'Professional studio look',
+                                'Natural outdoor setting'
+                            ].map((suggestion) => (
+                                <button
+                                    key={suggestion}
+                                    onClick={() => setPrompt(suggestion)}
+                                    className="px-3 py-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-zinc-100 rounded-md transition-colors border border-zinc-700 hover:border-zinc-600"
+                                    type="button"
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
                 <button onClick={handleGenerateScene} disabled={isGenerateDisabled} className="w-full py-3 px-6 text-md font-semibold text-zinc-900 bg-zinc-200 rounded-lg hover:bg-white transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
                     {isGeneratingScene ? 'Generating...' : '✨ Generate Creations'}
@@ -181,19 +287,63 @@ const App: React.FC = () => {
     
     const renderOutput = () => (
         <div className="flex flex-col items-center justify-center p-8 bg-[#1A1B1E] rounded-xl border border-zinc-800 min-h-[400px] lg:min-h-0">
-            <h2 className="text-xl font-semibold text-zinc-200 w-full text-center border-b border-zinc-800 pb-4 mb-4">
-                {isGeneratingAngles ? "Generated Angles" : "Your Creations"}
-            </h2>
-            <div className="flex-grow flex items-center justify-center w-full bg-black/20 rounded-lg overflow-hidden p-2 md:p-4">
-                {(isGeneratingScene || isGeneratingAngles) && <Spinner />}
+            <div className="flex justify-between items-center w-full border-b border-zinc-800 pb-4 mb-4">
+                <h2 className="text-xl font-semibold text-zinc-200">
+                    {isGeneratingAngles ? "Generated Angles" : "Your Creations"}
+                </h2>
+                {generatedImages && generatedImages.length > 0 && (
+                    <button
+                        onClick={handleDownloadAll}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded-lg transition-colors text-sm font-medium"
+                        aria-label="Download all images"
+                    >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Download All
+                    </button>
+                )}
+            </div>
+            <div className="flex-grow flex flex-col items-center justify-center w-full bg-black/20 rounded-lg overflow-hidden p-2 md:p-4">
+                {(isGeneratingScene || isGeneratingAngles) && (
+                    <div className="flex flex-col items-center gap-4">
+                        <Spinner />
+                        {progressMessage && (
+                            <p className="text-sm text-zinc-400 text-center animate-pulse">{progressMessage}</p>
+                        )}
+                        {abortControllerRef.current && (
+                            <button
+                                onClick={handleCancelGeneration}
+                                className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 rounded-lg border border-red-500/50 transition-colors text-sm font-medium"
+                            >
+                                Cancel Generation
+                            </button>
+                        )}
+                    </div>
+                )}
                 {error && <div className="p-4 text-red-400 text-center border border-red-500/50 rounded-lg"><strong>Error:</strong> {error}</div>}
                 
                 {generatedImages && !isGeneratingScene && (
                     <div className="grid grid-cols-2 gap-2 md:gap-4 w-full h-full">
                         {generatedImages.map((imageBase64, index) => (
                             <div key={index} className="relative group aspect-square bg-black/30 rounded-lg">
-                                <img src={`data:image/png;base64,${imageBase64}`} alt={`Generated scene ${index + 1}`} className="w-full h-full object-contain rounded-lg shadow-lg" />
-                                <a href={`data:image/png;base64,${imageBase64}`} download={`bottle-swap-${index + 1}.png`} className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-zinc-900/60 backdrop-blur-sm text-zinc-100 py-1.5 px-3 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform hover:scale-105 focus:opacity-100" aria-label={`Download image ${index + 1}`}>
+                                <img
+                                    src={`data:image/png;base64,${imageBase64}`}
+                                    alt={`Generated scene ${index + 1}`}
+                                    className="w-full h-full object-contain rounded-lg shadow-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => setModalImageUrl(`data:image/png;base64,${imageBase64}`)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            setModalImageUrl(`data:image/png;base64,${imageBase64}`);
+                                        }
+                                    }}
+                                />
+                                <div className="absolute top-2 left-2 bg-zinc-900/60 backdrop-blur-sm text-zinc-300 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Click to zoom
+                                </div>
+                                <a href={`data:image/png;base64,${imageBase64}`} download={`bottle-swap-${index + 1}.png`} className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-zinc-900/60 backdrop-blur-sm text-zinc-100 py-1.5 px-3 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 transform hover:scale-105 focus:opacity-100" aria-label={`Download image ${index + 1}`} onClick={(e) => e.stopPropagation()}>
                                     <DownloadIcon /> <span className="text-xs font-medium hidden sm:inline">Download</span>
                                 </a>
                             </div>
@@ -224,6 +374,11 @@ const App: React.FC = () => {
 
     return (
         <div className="text-zinc-200 min-h-screen font-sans">
+            <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+            {modalImageUrl && (
+                <ImageModal imageUrl={modalImageUrl} onClose={() => setModalImageUrl(null)} />
+            )}
+
             <header className="py-6 bg-[#111214]/80 backdrop-blur-sm border-b border-zinc-800 sticky top-0 z-10">
                 <div className="container mx-auto px-4 text-center">
                     <h1 className="text-4xl font-bold tracking-tight text-zinc-100">Bottle Swap Studio</h1>
@@ -234,8 +389,8 @@ const App: React.FC = () => {
             <main className="container mx-auto p-4 md:p-8">
                 <div className="max-w-md mx-auto mb-8">
                      <div className="relative flex p-1 bg-zinc-900 border border-zinc-800 rounded-lg">
-                        <button onClick={() => setGenerationMode('simple')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}>Simple Generation</button>
-                        <button onClick={() => setGenerationMode('complex')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`}>Complex Generation</button>
+                        <button onClick={() => handleModeChange('simple')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`} aria-pressed={generationMode === 'simple'}>Simple Generation</button>
+                        <button onClick={() => handleModeChange('complex')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`} aria-pressed={generationMode === 'complex'}>Complex Generation</button>
                         <div className="absolute top-1 bottom-1 bg-zinc-200 rounded-md transition-all duration-300 ease-in-out" style={{ width: 'calc(50% - 4px)', left: generationMode === 'simple' ? '4px' : 'calc(50% + 0px)' }}></div>
                     </div>
                 </div>
