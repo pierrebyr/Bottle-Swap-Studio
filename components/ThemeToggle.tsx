@@ -9,7 +9,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({ isDark, onToggle }) =>
   return (
     <button
       onClick={onToggle}
-      className="p-2 rounded-lg bg-zinc-800 dark:bg-zinc-800 hover:bg-zinc-700 dark:hover:bg-zinc-700 text-zinc-200 dark:text-zinc-200 transition-colors"
+      className="p-2 rounded-lg bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 transition-all duration-200"
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
     >

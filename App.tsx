@@ -429,16 +429,84 @@ const App: React.FC = () => {
                 <ImageModal imageUrl={modalImageUrl} onClose={() => setModalImageUrl(null)} />
             )}
 
-            <header className="py-6 bg-zinc-50/80 dark:bg-[#111214]/80 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-10">
+            <header className="py-8 bg-gradient-to-b from-zinc-100 to-white dark:from-zinc-900 dark:to-[#111214] border-b border-zinc-200 dark:border-zinc-800">
                 <div className="container mx-auto px-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex-1"></div>
-                        <div className="text-center">
-                            <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Bottle Swap Studio</h1>
-                            <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">Powered by Gemini Nano Banana 🍌</p>
+                    {/* Top Row: Title and Theme Toggle */}
+                    <div className="flex items-start justify-between mb-6">
+                        <div>
+                            <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 mb-2">
+                                Bottle Swap Studio
+                            </h1>
+                            <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-2xl">
+                                AI-powered product photography: Generate multiple bottle angles and seamlessly swap products into different scenes using Gemini 2.5 Flash Image
+                            </p>
                         </div>
-                        <div className="flex-1 flex justify-end">
-                            <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+                        <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+                    </div>
+
+                    {/* Stats & Info Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+                        {/* Total Generations */}
+                        <div className="bg-white dark:bg-zinc-800/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                            <div className="flex items-center gap-2 mb-1">
+                                <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+                                    <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">History</span>
+                            </div>
+                            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{history.length}</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">generations saved</p>
+                        </div>
+
+                        {/* Generation Modes */}
+                        <div className="bg-white dark:bg-zinc-800/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                            <div className="flex items-center gap-2 mb-1">
+                                <svg className="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Modes</span>
+                            </div>
+                            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">2</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">Simple & Complex</p>
+                        </div>
+
+                        {/* Image Format */}
+                        <div className="bg-white dark:bg-zinc-800/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                            <div className="flex items-center gap-2 mb-1">
+                                <svg className="w-5 h-5 text-purple-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Output</span>
+                            </div>
+                            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">4x</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">variations per gen</p>
+                        </div>
+
+                        {/* Quick Links */}
+                        <div className="bg-white dark:bg-zinc-800/50 rounded-lg p-4 border border-zinc-200 dark:border-zinc-700">
+                            <div className="flex items-center gap-2 mb-2">
+                                <svg className="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Resources</span>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <a href="https://ai.google.dev/gemini-api/docs" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                                    API Docs
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                                    </svg>
+                                </a>
+                                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                                    Get API Key
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                                    </svg>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
