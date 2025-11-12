@@ -60,6 +60,9 @@ const App: React.FC = () => {
     // Image modal
     const [modalImageUrl, setModalImageUrl] = useState<string | null>(null);
 
+    // Output count slider
+    const [outputCount, setOutputCount] = useState<number>(4);
+
     // AbortController for cancellation
     const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -122,11 +125,11 @@ const App: React.FC = () => {
         setError(null);
         setGeneratedImages(null);
         setProgressStatus('generating');
-        setProgressMessage('Analyzing scene and generating 4 variations...');
+        setProgressMessage(`Analyzing scene and generating ${outputCount} variation${outputCount > 1 ? 's' : ''}...`);
         abortControllerRef.current = new AbortController();
 
         try {
-            const resultBase64Array = await generateImage(referenceData, objectImages, prompt, isStyleReferenceOnly);
+            const resultBase64Array = await generateImage(referenceData, objectImages, prompt, isStyleReferenceOnly, outputCount);
             setGeneratedImages(resultBase64Array);
 
             // Add to history
@@ -315,7 +318,31 @@ const App: React.FC = () => {
                         </div>
                     </div>
                 </div>
-                <button onClick={handleGenerateScene} disabled={isGenerateDisabled} className="w-full py-3 px-6 text-md font-semibold text-zinc-900 bg-zinc-200 rounded-lg hover:bg-white transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
+                <div>
+                    <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-4 pt-8">
+                        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-200">5. Number of Outputs</h2>
+                        <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{outputCount}</span>
+                    </div>
+                    <div className="space-y-3">
+                        <input
+                            type="range"
+                            min="1"
+                            max="8"
+                            value={outputCount}
+                            onChange={(e) => setOutputCount(parseInt(e.target.value))}
+                            className="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            aria-label="Number of output images"
+                        />
+                        <div className="flex justify-between text-xs text-zinc-500 dark:text-zinc-500">
+                            <span>1 image</span>
+                            <span>8 images</span>
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                            <strong className="text-blue-700 dark:text-blue-400">Tip:</strong> More outputs = longer generation time. Start with 2-4 for faster results.
+                        </p>
+                    </div>
+                </div>
+                <button onClick={handleGenerateScene} disabled={isGenerateDisabled} className="w-full py-3 px-6 text-md font-semibold text-zinc-900 dark:text-zinc-900 bg-zinc-200 rounded-lg hover:bg-white dark:hover:bg-zinc-100 transition-colors duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
                     {isGeneratingScene ? 'Generating...' : '✨ Generate Creations'}
                 </button>
             </>
@@ -479,7 +506,7 @@ const App: React.FC = () => {
                                 </svg>
                                 <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Output</span>
                             </div>
-                            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">4x</p>
+                            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{outputCount}x</p>
                             <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">variations per gen</p>
                         </div>
 
@@ -515,7 +542,7 @@ const App: React.FC = () => {
             <main className="container mx-auto p-4 md:p-8">
                 <div className="max-w-md mx-auto mb-8">
                      <div className="relative flex p-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg">
-                        <div className="absolute top-1 bottom-1 bg-white dark:bg-zinc-200 rounded-md transition-all duration-300 ease-in-out shadow-sm" style={{ width: 'calc(50% - 4px)', left: generationMode === 'simple' ? '4px' : 'calc(50% + 0px)' }}></div>
+                        <div className="absolute top-1 bottom-1 bg-white dark:bg-zinc-700 rounded-md transition-all duration-300 ease-in-out shadow-sm" style={{ width: 'calc(50% - 4px)', left: generationMode === 'simple' ? '4px' : 'calc(50% + 0px)' }}></div>
                         <button onClick={() => handleModeChange('simple')} className={`relative z-10 w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'simple'}>Simple Generation</button>
                         <button onClick={() => handleModeChange('complex')} className={`relative z-10 w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'complex'}>Complex Generation</button>
                     </div>

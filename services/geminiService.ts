@@ -82,6 +82,7 @@ export const generateImage = async (
   objectImages: UploadedImage[], // Can now be one or many
   userPrompt: string,
   isStyleReferenceOnly: boolean,
+  outputCount: number = 4,
 ): Promise<string[]> => {
   try {
     const referenceImageParts = referenceImages.map(img => ({
@@ -112,7 +113,7 @@ export const generateImage = async (
       ];
     }
     
-    const generationPromises = Array(4).fill(0).map(() => callGenerateContentApi(parts));
+    const generationPromises = Array(outputCount).fill(0).map(() => callGenerateContentApi(parts));
     
     const responses = await Promise.all(generationPromises);
     
