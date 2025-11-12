@@ -3,8 +3,13 @@ import { ImageUploader } from './components/ImageUploader';
 import { Spinner } from './components/Spinner';
 import { ToastContainer } from './components/Toast';
 import { ImageModal } from './components/ImageModal';
+import { ThemeToggle } from './components/ThemeToggle';
+import { HistoryPanel } from './components/HistoryPanel';
 import { useToast } from './hooks/useToast';
+import { useTheme } from './hooks/useTheme';
+import { useGenerationHistory } from './hooks/useLocalStorage';
 import { generateImage, generateBottleAngles } from './services/geminiService';
+import { downloadImagesAsZip } from './utils/exportZip';
 import type { UploadedImage } from './types';
 
 // --- ICONS ---
@@ -19,6 +24,12 @@ type ProgressStatus = 'idle' | 'generating' | 'processing';
 const App: React.FC = () => {
     // Toast notifications
     const { toasts, dismissToast, showSuccess, showError, showInfo } = useToast();
+
+    // Theme
+    const { theme, toggleTheme, isDark } = useTheme();
+
+    // Generation History
+    const { history, addToHistory, clearHistory, deleteEntry } = useGenerationHistory();
 
     // Shared State
     const [spiritImage, setSpiritImage] = useState<UploadedImage | null>(null);
@@ -117,6 +128,10 @@ const App: React.FC = () => {
         try {
             const resultBase64Array = await generateImage(referenceData, objectImages, prompt, isStyleReferenceOnly);
             setGeneratedImages(resultBase64Array);
+
+            // Add to history
+            addToHistory(generationMode, resultBase64Array, prompt);
+
             showSuccess(`Successfully generated ${resultBase64Array.length} images!`);
             setProgressStatus('idle');
             setProgressMessage('');
@@ -163,6 +178,18 @@ const App: React.FC = () => {
         });
 
         showSuccess(`Downloaded ${generatedImages.length} images!`);
+    };
+
+    const handleDownloadZip = async () => {
+        if (!generatedImages || generatedImages.length === 0) return;
+
+        try {
+            await downloadImagesAsZip(generatedImages, 'bottle-swap-images');
+            showSuccess('ZIP file downloaded successfully!');
+        } catch (error) {
+            showError('Failed to create ZIP file');
+            console.error('ZIP download error:', error);
+        }
     };
 
     const handleModeChange = (mode: GenerationMode) => {
@@ -247,12 +274,22 @@ const App: React.FC = () => {
                     )}
                 </div>
                 <div>
-                    <h2 className="text-xl font-semibold text-zinc-200 border-b border-zinc-800 pb-4 mb-4 pt-8">4. Optional: Add Details</h2>
+                    <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-4 pt-8">
+                        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-200">4. Optional: Add Details</h2>
+                        <span className={`text-xs font-medium ${prompt.length > 500 ? 'text-red-500' : 'text-zinc-500 dark:text-zinc-500'}`}>
+                            {prompt.length}/1000
+                        </span>
+                    </div>
                     <textarea
                         value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
+                        onChange={(e) => {
+                            if (e.target.value.length <= 1000) {
+                                setPrompt(e.target.value);
+                            }
+                        }}
                         placeholder="e.g., 'Make the lighting warmer...'"
-                        className="w-full h-32 p-3 bg-zinc-900 border border-zinc-700 rounded-lg focus:ring-2 focus:ring-zinc-600 focus:border-zinc-600 transition-colors"
+                        maxLength={1000}
+                        className="w-full h-32 p-3 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors text-zinc-900 dark:text-zinc-200"
                         aria-label="Additional prompt details"
                     />
                     <div className="mt-3">
@@ -286,22 +323,35 @@ const App: React.FC = () => {
     };
     
     const renderOutput = () => (
-        <div className="flex flex-col items-center justify-center p-8 bg-[#1A1B1E] rounded-xl border border-zinc-800 min-h-[400px] lg:min-h-0">
-            <div className="flex justify-between items-center w-full border-b border-zinc-800 pb-4 mb-4">
-                <h2 className="text-xl font-semibold text-zinc-200">
+        <div className="flex flex-col items-center justify-center p-8 bg-zinc-50 dark:bg-[#1A1B1E] rounded-xl border border-zinc-200 dark:border-zinc-800 min-h-[400px] lg:min-h-0">
+            <div className="flex justify-between items-center w-full border-b border-zinc-200 dark:border-zinc-800 pb-4 mb-4">
+                <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-200">
                     {isGeneratingAngles ? "Generated Angles" : "Your Creations"}
                 </h2>
                 {generatedImages && generatedImages.length > 0 && (
-                    <button
-                        onClick={handleDownloadAll}
-                        className="flex items-center gap-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 rounded-lg transition-colors text-sm font-medium"
-                        aria-label="Download all images"
-                    >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Download All
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleDownloadZip}
+                            className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
+                            aria-label="Download as ZIP"
+                        >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clipRule="evenodd" />
+                                <path d="M6 12a2 2 0 012-2h8a2 2 0 012 2v2a2 2 0 01-2 2H2h2a2 2 0 002-2v-2z" />
+                            </svg>
+                            <span className="hidden sm:inline">ZIP</span>
+                        </button>
+                        <button
+                            onClick={handleDownloadAll}
+                            className="flex items-center gap-2 px-3 py-2 bg-zinc-600 dark:bg-zinc-700 hover:bg-zinc-700 dark:hover:bg-zinc-600 text-zinc-100 dark:text-zinc-200 rounded-lg transition-colors text-sm font-medium"
+                            aria-label="Download all images individually"
+                        >
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span className="hidden sm:inline">All</span>
+                        </button>
+                    </div>
                 )}
             </div>
             <div className="flex-grow flex flex-col items-center justify-center w-full bg-black/20 rounded-lg overflow-hidden p-2 md:p-4">
@@ -373,36 +423,57 @@ const App: React.FC = () => {
     );
 
     return (
-        <div className="text-zinc-200 min-h-screen font-sans">
+        <div className="text-zinc-900 dark:text-zinc-200 min-h-screen font-sans bg-white dark:bg-[#111214] transition-colors">
             <ToastContainer toasts={toasts} onDismiss={dismissToast} />
             {modalImageUrl && (
                 <ImageModal imageUrl={modalImageUrl} onClose={() => setModalImageUrl(null)} />
             )}
 
-            <header className="py-6 bg-[#111214]/80 backdrop-blur-sm border-b border-zinc-800 sticky top-0 z-10">
-                <div className="container mx-auto px-4 text-center">
-                    <h1 className="text-4xl font-bold tracking-tight text-zinc-100">Bottle Swap Studio</h1>
-                    <p className="mt-2 text-lg text-zinc-400">Powered by Gemini Nano Banana 🍌</p>
+            <header className="py-6 bg-zinc-50/80 dark:bg-[#111214]/80 backdrop-blur-sm border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-10">
+                <div className="container mx-auto px-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1"></div>
+                        <div className="text-center">
+                            <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Bottle Swap Studio</h1>
+                            <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">Powered by Gemini Nano Banana 🍌</p>
+                        </div>
+                        <div className="flex-1 flex justify-end">
+                            <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+                        </div>
+                    </div>
                 </div>
             </header>
 
             <main className="container mx-auto p-4 md:p-8">
                 <div className="max-w-md mx-auto mb-8">
-                     <div className="relative flex p-1 bg-zinc-900 border border-zinc-800 rounded-lg">
-                        <button onClick={() => handleModeChange('simple')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`} aria-pressed={generationMode === 'simple'}>Simple Generation</button>
-                        <button onClick={() => handleModeChange('complex')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900' : 'text-zinc-400 hover:text-zinc-200'}`} aria-pressed={generationMode === 'complex'}>Complex Generation</button>
-                        <div className="absolute top-1 bottom-1 bg-zinc-200 rounded-md transition-all duration-300 ease-in-out" style={{ width: 'calc(50% - 4px)', left: generationMode === 'simple' ? '4px' : 'calc(50% + 0px)' }}></div>
+                     <div className="relative flex p-1 bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-lg">
+                        <button onClick={() => handleModeChange('simple')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'simple' ? 'text-zinc-900 dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'simple'}>Simple Generation</button>
+                        <button onClick={() => handleModeChange('complex')} className={`w-1/2 py-2 text-sm font-semibold rounded-md transition-colors ${generationMode === 'complex' ? 'text-zinc-900 dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'}`} aria-pressed={generationMode === 'complex'}>Complex Generation</button>
+                        <div className="absolute top-1 bottom-1 bg-white dark:bg-zinc-200 rounded-md transition-all duration-300 ease-in-out shadow-sm" style={{ width: 'calc(50% - 4px)', left: generationMode === 'simple' ? '4px' : 'calc(50% + 0px)' }}></div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="flex flex-col gap-8 p-8 bg-[#1A1B1E] rounded-xl border border-zinc-800">
+                    <div className="flex flex-col gap-8 p-8 bg-zinc-50 dark:bg-[#1A1B1E] rounded-xl border border-zinc-200 dark:border-zinc-800">
                         {generationMode === 'complex' && complexPhase === 'angles' && renderAngleGeneration()}
                         {generationMode === 'simple' || (generationMode === 'complex' && complexPhase === 'scene') ? renderSceneGeneration() : null}
                     </div>
                     {renderOutput()}
                 </div>
             </main>
+
+            <HistoryPanel
+                history={history}
+                onClearHistory={() => {
+                    clearHistory();
+                    showSuccess('History cleared');
+                }}
+                onDeleteEntry={(id) => {
+                    deleteEntry(id);
+                    showInfo('Entry deleted');
+                }}
+                onImageClick={(imageUrl) => setModalImageUrl(imageUrl)}
+            />
         </div>
     );
 };

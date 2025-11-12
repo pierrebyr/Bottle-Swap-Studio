@@ -23,14 +23,24 @@ View your app in AI Studio: https://ai.studio/apps/drive/1alCWOKDDvzs4wRgsGuRseN
 - **Progress Indicators**: Real-time status updates during generation
 - **Cancellation Support**: Cancel ongoing generations to save time
 - **Full-Screen Preview**: Click any generated image to view in full screen
-- **Batch Download**: Download all generated images at once
+- **Batch Download**: Download all generated images at once or as ZIP
 - **Quick Prompts**: Pre-defined prompt suggestions for common adjustments
+- **Light/Dark Mode**: Toggle between light and dark themes with automatic system preference detection
+- **Generation History**: Persistent local history of your last 20 generations with localStorage
+- **Character Counter**: Smart prompt counter (max 1000 characters) with visual feedback
+- **ZIP Export**: Download all generated images in a single ZIP file
+
+### Reliability & Performance
+- **Automatic Retry**: API calls retry up to 3 times with exponential backoff on network errors
+- **Memory Optimization**: Proper cleanup of resources to prevent memory leaks
+- **Error Recovery**: Smart error handling that distinguishes retriable vs non-retriable errors
 
 ### Accessibility
 - ARIA labels and roles for screen readers
 - Keyboard navigation support (Tab, Enter, Space, Escape)
 - Focus management for modals and interactive elements
-- High contrast dark theme
+- High contrast light and dark themes
+- Color-blind friendly error states
 
 ## Run Locally
 

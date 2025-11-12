@@ -1,24 +1,37 @@
 import { GoogleGenAI, Modality, Part } from "@google/genai";
 import type { UploadedImage } from '../types';
+import { retryWithBackoff } from '../utils/retry';
 
 // Assumes API_KEY is set in the environment
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 const model = 'gemini-2.5-flash-image';
 
 const callGenerateContentApi = async (parts: Part[]) => {
-    const response = await ai.models.generateContent({
-        model: model,
-        contents: { parts },
-        config: {
-            responseModalities: [Modality.IMAGE],
+    return retryWithBackoff(
+        async () => {
+            const response = await ai.models.generateContent({
+                model: model,
+                contents: { parts },
+                config: {
+                    responseModalities: [Modality.IMAGE],
+                },
+            });
+            for (const part of response.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    return part.inlineData.data;
+                }
+            }
+            throw new Error("No image data found in the API response.");
         },
-    });
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            return part.inlineData.data;
+        {
+            maxAttempts: 3,
+            delayMs: 2000,
+            backoffMultiplier: 2,
+            onRetry: (attempt, error) => {
+                console.log(`Retry attempt ${attempt} after error: ${error.message}`);
+            },
         }
-    }
-    throw new Error("No image data found in the API response.");
+    );
 };
 
 
